@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Sample Entry</title>
+<link rel="stylesheet" href="assets/css/style.css">
+</head>
+
+<body>
+
+<h1 id="pageTitle">New Sample</h1>
+
+<div class="proj-header">
+  <p><strong>Project:</strong> <span id="projName"></span></p>
+  <p><strong>Sample ID:</strong> <span id="sampleId"></span></p>
+</div>
+<div id="fk-floating-tools">
+  <div id="fk-tools-header">
+    <span>Tools</span>
+    <button id="fk-tools-toggle">−</button>
+  </div>
+
+  <div id="fk-tools-body">
+    <button class="fk-tool-btn" data-tool="timers">Test Timers</button>
+    <button class="fk-tool-btn" data-tool="weather">Weather</button>
+  </div>
+</div>
+
+<div class="form-grid">
+  <label>
+    Unit
+    <input id="unit" type="text">
+  </label>
+
+  <label>
+    Elevation
+    <input id="elevation" type="text">
+  </label>
+
+  <label>
+    Product Type
+    <input id="product_type" type="text">
+  </label>
+
+  <label>
+    Pressure (psf)
+    <input id="pressure_psf" type="number" step="0.1">
+  </label>
+
+  <label>
+    Result
+    <select id="result">
+      <option value="">Select…</option>
+      <option value="Pass">Pass</option>
+      <option value="Fail">Fail</option>
+      <option value="N/A">N/A</option>
+    </select>
+  </label>
+</div>
+
+<button id="saveBtn" class="btn btn-primary">Save Sample</button>
+<button id="cancelBtn" class="btn btn-line">Cancel</button>
+
+<script type="module">
+  console.log("🧪 BEE FieldKIT — Sample Entry Loaded");
+
+  // -----------------------------
+  // Read URL parameters
+  // -----------------------------
+  const params = new URLSearchParams(location.search);
+  const projectId = params.get("projectId");
+  const projectName = params.get("projectName");
+  const sampleParam = params.get("sample"); // "new" or sample_id
+
+  document.getElementById("projName").textContent = projectName;
+
+  // -----------------------------
+  // Load samples
+  // -----------------------------
+  let samples = JSON.parse(localStorage.getItem(`project_${projectId}_samples`)) || [];
+
+  let editingSample = null;
+
+  if (sampleParam === "new") {
+    // Creating a new sample
+    const newId = samples.length + 1;
+    document.getElementById("sampleId").textContent = newId;
+    editingSample = { sample_id: newId };
+  } else {
+    // Editing an existing sample
+    const id = Number(sampleParam);
+    editingSample = samples.find(s => s.sample_id === id);
+
+    if (!editingSample) {
+      alert("Sample not found.");
+      history.back();
+    }
+
+    document.getElementById("pageTitle").textContent = "Edit Sample";
+    document.getElementById("sampleId").textContent = editingSample.sample_id;
+
+    // Fill fields
+    document.getElementById("unit").value = editingSample.unit || "";
+    document.getElementById("elevation").value = editingSample.elevation || "";
+    document.getElementById("product_type").value = editingSample.product_type || "";
+    document.getElementById("pressure_psf").value = editingSample.pressure_psf || "";
+    document.getElementById("result").value = editingSample.result || "";
+  }
+    // -----------------------------
+    // Metadata Auto-Fill (Hybrid)
+    // -----------------------------
+    function loadGlobalMeta() {
+      return JSON.parse(localStorage.getItem("fieldkit_metadata_global")) || {};
+    }
+
+    function loadProjectMeta(id) {
+      return JSON.parse(localStorage.getItem(`project_${id}_metadata`)) || {};
+    }
+
+    function applyMetadata() {
+      const global = loadGlobalMeta();
+      const project = loadProjectMeta(projectId);
+      const meta = { ...global, ...project };
+
+      if (meta.testDate) document.getElementById("test_date")?.value = meta.testDate;
+      if (meta.technicians) document.getElementById("technician")?.value = meta.technicians;
+      if (meta.witnesses) document.getElementById("witness")?.value = meta.witnesses;
+      if (meta.temp_f) document.getElementById("temp_f")?.value = meta.temp_f;
+      if (meta.wind_mph) document.getElementById("wind_mph")?.value = meta.wind_mph;
+      if (meta.wind_dir) document.getElementById("wind_dir")?.value = meta.wind_dir;
+      if (meta.barometric) document.getElementById("barometric")?.value = meta.barometric;
+    }
+
+    applyMetadata();
+
+    // -----------------------------
+    // Floating Tools Panel Logic
+    // -----------------------------
+
+    const panel = document.getElementById("fk-floating-tools");
+    const header = document.getElementById("fk-tools-header");
+    const toggleBtn = document.getElementById("fk-tools-toggle");
+    const body = document.getElementById("fk-tools-body");
+
+    // Collapse / expand
+    toggleBtn.addEventListener("click", () => {
+      const isHidden = body.style.display === "none";
+      body.style.display = isHidden ? "block" : "none";
+      toggleBtn.textContent = isHidden ? "−" : "+";
+    });
+
+    // Draggable panel
+    let offsetX = 0, offsetY = 0, dragging = false;
+
+    header.addEventListener("mousedown", (e) => {
+      dragging = true;
+      offsetX = e.clientX - panel.offsetLeft;
+      offsetY = e.clientY - panel.offsetTop;
+    });
+
+    document.addEventListener("mousemove", (e) => {
+      if (!dragging) return;
+      panel.style.left = `${e.clientX - offsetX}px`;
+      panel.style.top = `${e.clientY - offsetY}px`;
+      panel.style.bottom = "auto";
+      panel.style.right = "auto";
+    });
+
+    document.addEventListener("mouseup", () => dragging = false);
+
+    // Tool buttons
+    document.querySelectorAll(".fk-tool-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const tool = btn.dataset.tool;
+
+        if (tool === "timers") {
+          window.open("tools/test-timers/index.html", "_blank");
+        }
+
+        if (tool === "weather") {
+          window.open("tools/weather/index.html", "_blank");
+        }
+      });
+    });
+
+  // -----------------------------
+  // Save sample
+  // -----------------------------
+  document.getElementById("saveBtn").addEventListener("click", () => {
+    editingSample.unit = document.getElementById("unit").value;
+    editingSample.elevation = document.getElementById("elevation").value;
+    editingSample.product_type = document.getElementById("product_type").value;
+    editingSample.pressure_psf = document.getElementById("pressure_psf").value;
+    editingSample.result = document.getElementById("result").value;
+
+    if (sampleParam === "new") {
+      samples.push(editingSample);
+    } else {
+      const index = samples.findIndex(s => s.sample_id === editingSample.sample_id);
+      samples[index] = editingSample;
+    }
+
+    localStorage.setItem(`project_${projectId}_samples`, JSON.stringify(samples));
+
+    // Return to project page
+    const url = new URL("project.html", location.href);
+    url.searchParams.set("projectId", projectId);
+    url.searchParams.set("projectName", projectName);
+    location.href = url.toString();
+  });
+
+  // -----------------------------
+  // Cancel → return to project page
+  // -----------------------------
+  document.getElementById("cancelBtn").addEventListener("click", () => {
+    const url = new URL("project.html", location.href);
+    url.searchParams.set("projectId", projectId);
+    url.searchParams.set("projectName", projectName);
+    location.href = url.toString();
+  });
+</script>
+
+</body>
+</html>
